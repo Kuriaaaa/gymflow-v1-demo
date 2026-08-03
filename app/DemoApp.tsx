@@ -47,17 +47,23 @@ const initial: DemoState = {
 const rolePerson: Record<Role, number> = { owner: 1, receptionist: 2, trainer: 3, member: 4 };
 const money = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 });
 
+function loadDemoState(): DemoState {
+  if (typeof window === "undefined") return initial;
+
+  const saved = window.localStorage.getItem("gymflow-public-demo");
+  if (!saved) return initial;
+
+  try {
+    return JSON.parse(saved) as DemoState;
+  } catch {
+    return initial;
+  }
+}
+
 export default function DemoApp() {
   const [role, setRole] = useState<Role>("owner");
-  const [data, setData] = useState<DemoState>(initial);
+  const [data, setData] = useState<DemoState>(loadDemoState);
   const [message, setMessage] = useState("Demo ready. Choose a role to explore its workspace.");
-
-  useEffect(() => {
-    const saved = window.localStorage.getItem("gymflow-public-demo");
-    if (saved) {
-      try { setData(JSON.parse(saved)); } catch { /* keep seed */ }
-    }
-  }, []);
 
   useEffect(() => {
     window.localStorage.setItem("gymflow-public-demo", JSON.stringify(data));
