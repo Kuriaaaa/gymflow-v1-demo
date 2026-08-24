@@ -45,6 +45,12 @@ const initial: DemoState = {
 };
 
 const rolePerson: Record<Role, number> = { owner: 1, receptionist: 2, trainer: 3, member: 4 };
+const roleStory: Record<Role, { number: string; title: string; description: string; scope: string }> = {
+  owner: { number: "01", title: "Run the whole operation", description: "Revenue, people, packages and expenses in one decisive view.", scope: "Full oversight" },
+  receptionist: { number: "02", title: "Keep the front desk moving", description: "Register members, activate plans, receive payments and track attendance.", scope: "Operations access" },
+  trainer: { number: "03", title: "Coach with context", description: "See assigned members, plan sessions and deliver focused workout programmes.", scope: "Assigned members only" },
+  member: { number: "04", title: "Own the fitness journey", description: "Follow membership, sessions, workouts, visits and payments privately.", scope: "Personal data only" },
+};
 const money = new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 });
 
 function loadDemoState(): DemoState {
@@ -210,30 +216,45 @@ export default function DemoApp() {
   return (
     <main>
       <header className="topbar">
-        <a className="brand" href="#top">GYMFLOW <span>V1</span></a>
+        <a className="brand" href="#top"><b>GF</b> GYMFLOW <span>V1</span></a>
+        <nav aria-label="Demo navigation"><a href="#personas">Personas</a><a href="#workspace">Live demo</a><a href="#security">Security</a></nav>
         <div className="demo-badge">PUBLIC DEMO · FICTIONAL DATA</div>
         <button className="ghost" onClick={resetDemo}>Reset demo</button>
       </header>
 
-      <section id="top" className="hero">
-        <div>
-          <p className="eyebrow">TUJITUME GYM OPERATIONS</p>
-          <h1>One flow.<br/><span>Every role.</span></h1>
-          <p className="lead">Explore the complete gym workflow safely with fictional records. Switch roles to see the exact permissions and tools each person receives.</p>
+      <section id="top" className="hero" style={{ backgroundImage: "url('images/gymflow-demo-hero-v2.png')" }}>
+        <div className="hero-copy">
+          <p className="eyebrow">KURIA&apos;S GYM PROJECT · INTERACTIVE EXPERIENCE</p>
+          <h1>The gym,<br/><span>in perfect flow.</span></h1>
+          <p className="lead">Experience how one connected platform moves a member from welcome desk to workout, payment and measurable progress—without crossing a single privacy boundary.</p>
+          <div className="hero-actions"><a className="primary-link" href="#workspace">Explore the demo</a><a className="text-link" href="https://gymflow-v1-app.onrender.com/" target="_blank" rel="noreferrer">Open live application ↗</a></div>
         </div>
         <div className="role-switcher" aria-label="Choose demo role">
-          <p>View workspace as</p>
+          <p>Step into a workspace</p>
           {(["owner", "receptionist", "trainer", "member"] as Role[]).map((item) => (
-            <button key={item} className={role === item ? "active" : ""} onClick={() => { setRole(item); setMessage(`${item} workspace loaded.`); }}>{item}</button>
+            <button key={item} className={role === item ? "active" : ""} onClick={() => { setRole(item); setMessage(`${item} workspace loaded.`); document.querySelector("#workspace")?.scrollIntoView({ behavior: "smooth" }); }}><span>{roleStory[item].number}</span>{item}<small>{roleStory[item].scope}</small></button>
           ))}
+        </div>
+        <div className="hero-proof"><span>4 secured roles</span><span>1 shared operation</span><span>100% fictional data</span></div>
+      </section>
+
+      <section id="personas" className="persona-section">
+        <div className="section-intro"><p className="eyebrow">THE PEOPLE INSIDE THE FLOW</p><h2>Different jobs.<br/>One source of truth.</h2><p>Choose a role to preview its purpose, then enter the workspace to try real demo actions.</p></div>
+        <div className="persona-grid">
+          {(["owner", "receptionist", "trainer", "member"] as Role[]).map((item) => <button key={item} className={`persona-card ${role === item ? "selected" : ""}`} onClick={() => { setRole(item); setMessage(`${item} workspace loaded.`); }}><span>{roleStory[item].number}</span><h3>{item}</h3><strong>{roleStory[item].title}</strong><p>{roleStory[item].description}</p><small>{roleStory[item].scope} →</small></button>)}
         </div>
       </section>
 
-      <section className="workspace">
+      <section className="story-panel" style={{ backgroundImage: "url('images/gymflow-demo-operations-v2.png')" }}>
+        <div><p className="eyebrow">A COMPLETE DAY, CONNECTED</p><h2>From first hello<br/>to the final set.</h2><ol><li><b>01</b><span><strong>Reception</strong>Member joins, selects a plan and checks in.</span></li><li><b>02</b><span><strong>Coaching</strong>Trainer receives the assignment and builds the session.</span></li><li><b>03</b><span><strong>Insight</strong>Owner sees the operational outcome—not private noise.</span></li></ol></div>
+      </section>
+
+      <section id="workspace" className={`workspace role-${role}`}>
         <div className="workspace-head">
-          <div><p className="eyebrow">{role} workspace</p><h2>Hello, {activePerson.name}.</h2></div>
+          <div><p className="eyebrow">INTERACTIVE {role} WORKSPACE</p><h2>Hello, {activePerson.name}.</h2><p>{roleStory[role].description}</p></div>
           <div className="status"><i/> All demo services operational</div>
         </div>
+        <div className="workspace-role-tabs">{(["owner", "receptionist", "trainer", "member"] as Role[]).map((item) => <button key={item} className={role === item ? "active" : ""} onClick={() => { setRole(item); setMessage(`${item} workspace loaded.`); }}>{item}</button>)}</div>
         <div className="metrics">
           <Metric label="Members" value={members.length}/>
           <Metric label="Active memberships" value={data.memberships.filter((item) => item.status === "active").length}/>
@@ -265,6 +286,7 @@ export default function DemoApp() {
           {role === "owner" && <Table title="Expenses" heads={["Date", "Category", "Amount"]} rows={data.expenses.map((item) => [item.date, item.category, money.format(item.amount)])}/>}
         </div>
       </section>
+      <section id="security" className="security-section"><div><p className="eyebrow">PRIVACY BY ROLE</p><h2>Shared operations.<br/>Separated access.</h2></div><div className="security-grid"><article><b>Owner</b><p>Sees business-wide operational records and administration.</p></article><article><b>Reception</b><p>Handles members and payments without private workout details.</p></article><article><b>Trainer</b><p>Sees assigned members only—never gym finances.</p></article><article><b>Member</b><p>Sees only their own membership and fitness journey.</p></article></div></section>
       <footer><strong>GymFlow V1</strong><span>Public demonstration · No real payments or personal data</span></footer>
     </main>
   );
