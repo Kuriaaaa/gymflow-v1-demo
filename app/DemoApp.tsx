@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { assignedMemberIds, canTrainerManageMember, hasActiveAssignment, type Assignment } from "./demo-policy";
 
 type Role = "owner" | "receptionist" | "trainer" | "member";
 type Person = { id: number; name: string; email: string; role: Role; status: "active" };
@@ -8,7 +9,8 @@ type Membership = { id: number; memberId: number; packageName: string; endsOn: s
 type Visit = { id: number; memberId: number; checkedIn: string; checkedOut?: string };
 type Session = { id: number; memberId: number; trainerId: number; title: string; startsAt: string };
 type Workout = { id: number; memberId: number; trainerId: number; title: string; instructions: string };
-type Payment = { id: number; memberId: number; packageName: string; amount: number; reference: string };
+type PaymentMethod = "M-Pesa sandbox" | "Card sandbox" | "Cash demo";
+type Payment = { id: number; memberId: number; packageName: string; amount: number; reference: string; method: PaymentMethod };
 type Expense = { id: number; category: string; amount: number; date: string };
 type Package = { name: string; days: number; price: number };
 
@@ -18,6 +20,7 @@ type DemoState = {
   visits: Visit[];
   sessions: Session[];
   workouts: Workout[];
+  assignments: Assignment[];
   payments: Payment[];
   expenses: Expense[];
   packages: Package[];
@@ -40,7 +43,8 @@ const initial: DemoState = {
   visits: [{ id: 1, memberId: 4, checkedIn: "2026-07-31 07:42" }],
   sessions: [{ id: 1, memberId: 4, trainerId: 3, title: "Strength foundation", startsAt: "2026-08-01 09:00" }],
   workouts: [{ id: 1, memberId: 4, trainerId: 3, title: "Full body A", instructions: "3 rounds: squat, press, row and core." }],
-  payments: [{ id: 1, memberId: 4, packageName: "Monthly", amount: 3800, reference: "GF-DEMO-001" }],
+  assignments: [{ id: 1, trainerId: 3, memberId: 4, active: true }],
+  payments: [{ id: 1, memberId: 4, packageName: "Monthly", amount: 3800, reference: "GF-DEMO-001", method: "M-Pesa sandbox" }],
   expenses: [{ id: 1, category: "Equipment", amount: 8500, date: "2026-07-30" }],
 };
 
@@ -60,7 +64,13 @@ function loadDemoState(): DemoState {
   if (!saved) return initial;
 
   try {
-    return JSON.parse(saved) as DemoState;
+    const parsed = JSON.parse(saved) as Partial<DemoState>;
+    return {
+      ...initial,
+      ...parsed,
+      assignments: parsed.assignments ?? initial.assignments,
+      payments: (parsed.payments ?? initial.payments).map((payment) => ({ ...payment, method: payment.method ?? "Cash demo" })),
+    };
   } catch {
     return initial;
   }
@@ -78,17 +88,15 @@ export default function DemoApp() {
   const activePerson = data.people.find((person) => person.id === rolePerson[role])!;
   const members = data.people.filter((person) => person.role === "member");
   const trainers = data.people.filter((person) => person.role === "trainer");
-  const relatedIds = new Set([
-    ...data.sessions.filter((item) => item.trainerId === activePerson.id).map((item) => item.memberId),
-    ...data.workouts.filter((item) => item.trainerId === activePerson.id).map((item) => item.memberId),
-  ]);
+  const relatedIds = assignedMemberIds(data.assignments, activePerson.id);
+  const assignedMembers = members.filter((person) => relatedIds.has(person.id));
 
-  const visible = useMemo(() => {
+  const visible = (() => {
     if (role === "owner") return data.people;
     if (role === "receptionist") return data.people.filter((person) => ["member", "trainer"].includes(person.role));
-    if (role === "trainer") return members;
+    if (role === "trainer") return assignedMembers;
     return [];
-  }, [data.people, members, role]);
+  })();
 
   const memberships = data.memberships.filter((item) =>
     role === "owner" || role === "receptionist" ||
@@ -128,7 +136,17 @@ export default function DemoApp() {
     if (data.people.some((person) => person.email === email)) return setMessage("That email is already registered.");
     setData((current) => ({ ...current, people: [...current.people, { id: Date.now(), name, email, role: "member", status: "active" }] }));
     form.reset();
-    setMessage(`Member ${name} registered with a temporary demo credential.`);
+    setMessage(`Fictional member ${name} registered. This public demo does not create or store passwords.`);
+  }
+
+  function assignTrainer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const memberId = Number(value(form, "memberId"));
+    const trainerId = Number(value(form, "trainerId"));
+    if (hasActiveAssignment(data.assignments, trainerId, memberId)) return setMessage("That trainer is already assigned to this member.");
+    setData((current) => ({ ...current, assignments: [...current.assignments, { id: Date.now(), memberId, trainerId, active: true }] }));
+    setMessage(`${nameOf(trainerId, data)} assigned to ${nameOf(memberId, data)}.`);
   }
 
   function addMembership(event: FormEvent<HTMLFormElement>) {
@@ -151,20 +169,23 @@ export default function DemoApp() {
     const form = event.currentTarget;
     const memberId = role === "member" ? activePerson.id : Number(value(form, "memberId"));
     const packageName = value(form, "packageName");
+    const method = value(form, "method") as PaymentMethod;
     const membership = data.memberships.find((item) => item.memberId === memberId && item.status === "active");
     if (membership && membership.packageName !== packageName) return setMessage("Blocked: the selected package differs from the active membership.");
     if (data.payments.some((item) => item.memberId === memberId && membership && item.packageName === membership.packageName)) {
       return setMessage("Blocked: this active membership is already paid.");
     }
     const selected = data.packages.find((item) => item.name === packageName)!;
+    const membershipId = Math.max(0, ...data.memberships.map((item) => item.id)) + 1;
+    const paymentId = Math.max(0, ...data.payments.map((item) => item.id)) + 1;
     let next = data;
     if (!membership) {
       const end = new Date();
       end.setDate(end.getDate() + selected.days);
-      next = { ...next, memberships: [...next.memberships, { id: Date.now(), memberId, packageName, endsOn: end.toISOString().slice(0, 10), status: "active" }] };
+      next = { ...next, memberships: [...next.memberships, { id: membershipId, memberId, packageName, endsOn: end.toISOString().slice(0, 10), status: "active" }] };
     }
-    setData({ ...next, payments: [...next.payments, { id: Date.now(), memberId, packageName, amount: selected.price, reference: `GF-DEMO-${String(next.payments.length + 1).padStart(3, "0")}` }] });
-    setMessage(`${money.format(selected.price)} sandbox payment approved without creating a second membership.`);
+    setData({ ...next, payments: [...next.payments, { id: paymentId, memberId, packageName, amount: selected.price, reference: `GF-DEMO-${String(next.payments.length + 1).padStart(3, "0")}`, method }] });
+    setMessage(`${money.format(selected.price)} ${method} payment approved without creating a second membership.`);
   }
 
   function attendance(event: FormEvent<HTMLFormElement>) {
@@ -185,7 +206,9 @@ export default function DemoApp() {
     event.preventDefault();
     const form = event.currentTarget;
     const trainerId = role === "trainer" ? activePerson.id : Number(value(form, "trainerId"));
-    setData((current) => ({ ...current, sessions: [...current.sessions, { id: Date.now(), memberId: Number(value(form, "memberId")), trainerId, title: value(form, "title"), startsAt: value(form, "startsAt") }] }));
+    const memberId = Number(value(form, "memberId"));
+    if (role === "trainer" && !canTrainerManageMember(data.assignments, trainerId, memberId)) return setMessage("Blocked: trainers can schedule assigned members only.");
+    setData((current) => ({ ...current, sessions: [...current.sessions, { id: Date.now(), memberId, trainerId, title: value(form, "title"), startsAt: value(form, "startsAt") }] }));
     form.reset();
     setMessage("Training session scheduled.");
   }
@@ -194,7 +217,9 @@ export default function DemoApp() {
     event.preventDefault();
     const form = event.currentTarget;
     const trainerId = role === "trainer" ? activePerson.id : Number(value(form, "trainerId"));
-    setData((current) => ({ ...current, workouts: [...current.workouts, { id: Date.now(), memberId: Number(value(form, "memberId")), trainerId, title: value(form, "title"), instructions: value(form, "instructions") }] }));
+    const memberId = Number(value(form, "memberId"));
+    if (role === "trainer" && !canTrainerManageMember(data.assignments, trainerId, memberId)) return setMessage("Blocked: trainers can assign workouts to assigned members only.");
+    setData((current) => ({ ...current, workouts: [...current.workouts, { id: Date.now(), memberId, trainerId, title: value(form, "title"), instructions: value(form, "instructions") }] }));
     form.reset();
     setMessage("Workout plan assigned.");
   }
@@ -235,7 +260,7 @@ export default function DemoApp() {
             <button key={item} className={role === item ? "active" : ""} onClick={() => { setRole(item); setMessage(`${item} workspace loaded.`); document.querySelector("#workspace")?.scrollIntoView({ behavior: "smooth" }); }}><span>{roleStory[item].number}</span>{item}<small>{roleStory[item].scope}</small></button>
           ))}
         </div>
-        <div className="hero-proof"><span>4 secured roles</span><span>1 shared operation</span><span>100% fictional data</span></div>
+        <div className="hero-proof"><span>4 role-based views</span><span>1 shared operation</span><span>100% fictional data</span></div>
       </section>
 
       <section id="personas" className="persona-section">
@@ -265,12 +290,13 @@ export default function DemoApp() {
 
         <h3 className="section-title">Quick actions</h3>
         <div className="action-grid">
-          {(role === "owner" || role === "receptionist") && <Action title="Register member" onSubmit={addMember}><Input name="name" label="Full name"/><Input name="email" label="Email" type="email"/><Input name="password" label="Temporary password" type="password"/><Submit>Register member</Submit></Action>}
+          {(role === "owner" || role === "receptionist") && <Action title="Register fictional member" onSubmit={addMember}><Input name="name" label="Full name"/><Input name="email" label="Email" type="email"/><Submit>Register member</Submit></Action>}
+          {(role === "owner" || role === "receptionist") && <Action title="Assign trainer" onSubmit={assignTrainer}><Select name="memberId" label="Member" items={members}/><Select name="trainerId" label="Trainer" items={trainers}/><Submit>Assign trainer</Submit></Action>}
           {(role === "owner" || role === "receptionist") && <Action title="Activate membership" onSubmit={addMembership}><Select name="memberId" label="Member" items={members}/><PackageSelect packages={data.packages}/><Submit>Activate</Submit></Action>}
-          {(role === "owner" || role === "receptionist" || role === "member") && <Action title="Approve sandbox payment" onSubmit={approvePayment}>{role !== "member" && <Select name="memberId" label="Member" items={members}/>}<PackageSelect packages={data.packages}/><Submit>Approve payment</Submit></Action>}
+          {(role === "owner" || role === "receptionist" || role === "member") && <Action title="Approve sandbox payment" onSubmit={approvePayment}>{role !== "member" && <Select name="memberId" label="Member" items={members}/>}<PackageSelect packages={data.packages}/><PaymentMethodSelect/><Submit>Approve payment</Submit></Action>}
           {(role === "owner" || role === "receptionist") && <Action title="Attendance desk" onSubmit={attendance}><Select name="memberId" label="Member" items={members}/><Submit>Toggle check-in/out</Submit></Action>}
-          {(role === "owner" || role === "receptionist" || role === "trainer") && <Action title="Schedule session" onSubmit={addSchedule}><Select name="memberId" label="Member" items={members}/>{role !== "trainer" && <Select name="trainerId" label="Trainer" items={trainers}/>}<Input name="title" label="Session title"/><Input name="startsAt" label="Starts" type="datetime-local"/><Submit>Schedule</Submit></Action>}
-          {(role === "owner" || role === "trainer") && <Action title="Assign workout" onSubmit={addWorkout}><Select name="memberId" label="Member" items={members}/>{role !== "trainer" && <Select name="trainerId" label="Trainer" items={trainers}/>}<Input name="title" label="Plan title"/><Input name="instructions" label="Instructions"/><Submit>Assign plan</Submit></Action>}
+          {(role === "owner" || role === "receptionist" || role === "trainer") && <Action title="Schedule session" onSubmit={addSchedule}><Select name="memberId" label="Member" items={role === "trainer" ? assignedMembers : members}/>{role !== "trainer" && <Select name="trainerId" label="Trainer" items={trainers}/>}<Input name="title" label="Session title"/><Input name="startsAt" label="Starts" type="datetime-local"/><Submit>Schedule</Submit></Action>}
+          {(role === "owner" || role === "trainer") && <Action title="Assign workout" onSubmit={addWorkout}><Select name="memberId" label="Member" items={role === "trainer" ? assignedMembers : members}/>{role !== "trainer" && <Select name="trainerId" label="Trainer" items={trainers}/>}<Input name="title" label="Plan title"/><Input name="instructions" label="Instructions"/><Submit>Assign plan</Submit></Action>}
           {role === "owner" && <Action title="Record expense" onSubmit={addExpense}><Input name="category" label="Category"/><Input name="amount" label="Amount" type="number"/><Submit>Record expense</Submit></Action>}
           {role === "member" && <div className="action-card profile-card"><h4>Member self-service</h4><p>View membership, attendance, sessions, workouts and payments below. Profile and progress records stay private to this browser demo.</p></div>}
         </div>
@@ -282,11 +308,11 @@ export default function DemoApp() {
           <Table title="Attendance" heads={["Member", "Check in", "Check out"]} rows={visits.map((item) => [nameOf(item.memberId, data), item.checkedIn, item.checkedOut ?? "Inside"])}/>
           <Table title="Schedule" heads={["Session", "Member", "Trainer"]} rows={sessions.map((item) => [item.title, nameOf(item.memberId, data), nameOf(item.trainerId, data)])}/>
           {role !== "receptionist" && <Table title="Workout plans" heads={["Plan", "Member", "Instructions"]} rows={workouts.map((item) => [item.title, nameOf(item.memberId, data), item.instructions])}/>}
-          {role !== "trainer" && <Table title="Payments" heads={["Reference", "Member", "Amount"]} rows={payments.map((item) => [item.reference, nameOf(item.memberId, data), money.format(item.amount)])}/>}
+          {role !== "trainer" && <Table title="Payments" heads={["Reference", "Member", "Method", "Amount"]} rows={payments.map((item) => [item.reference, nameOf(item.memberId, data), item.method, money.format(item.amount)])}/>}
           {role === "owner" && <Table title="Expenses" heads={["Date", "Category", "Amount"]} rows={data.expenses.map((item) => [item.date, item.category, money.format(item.amount)])}/>}
         </div>
       </section>
-      <section id="security" className="security-section"><div><p className="eyebrow">PRIVACY BY ROLE</p><h2>Shared operations.<br/>Separated access.</h2></div><div className="security-grid"><article><b>Owner</b><p>Sees business-wide operational records and administration.</p></article><article><b>Reception</b><p>Handles members and payments without private workout details.</p></article><article><b>Trainer</b><p>Sees assigned members only—never gym finances.</p></article><article><b>Member</b><p>Sees only their own membership and fitness journey.</p></article></div></section>
+      <section id="security" className="security-section"><div><p className="eyebrow">PRIVACY BY ROLE</p><h2>Shared operations.<br/>Separated views.</h2><p>This browser-only showcase uses fictional data and an open role switcher. It demonstrates access boundaries; secure authentication and server-enforced authorization run in the live application.</p></div><div className="security-grid"><article><b>Owner</b><p>Sees business-wide operational records and administration.</p></article><article><b>Reception</b><p>Handles members and payments without private workout details.</p></article><article><b>Trainer</b><p>Sees assigned members only—never gym finances.</p></article><article><b>Member</b><p>Sees only their own membership and fitness journey.</p></article></div></section>
       <footer><strong>GymFlow V1</strong><span>Public demonstration · No real payments or personal data</span></footer>
     </main>
   );
@@ -298,6 +324,7 @@ function Action({ title, onSubmit, children }: { title: string; onSubmit: (event
 function Input({ name, label, type = "text" }: { name: string; label: string; type?: string }) { return <label>{label}<input name={name} type={type} required/></label>; }
 function Select({ name, label, items }: { name: string; label: string; items: Person[] }) { return <label>{label}<select name={name} required>{items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>; }
 function PackageSelect({ packages }: { packages: Package[] }) { return <label>Package<select name="packageName" required>{packages.map((item) => <option key={item.name}>{item.name}</option>)}</select></label>; }
+function PaymentMethodSelect() { return <label>Payment method<select name="method" required><option>M-Pesa sandbox</option><option>Card sandbox</option><option>Cash demo</option></select></label>; }
 function Submit({ children }: { children: React.ReactNode }) { return <button className="primary" type="submit">{children}</button>; }
 function Table({ title, heads, rows }: { title: string; heads: string[]; rows: (string | number)[][] }) {
   return <article className="table-card"><h4>{title}</h4><div className="table-wrap"><table><thead><tr>{heads.map((head) => <th key={head}>{head}</th>)}</tr></thead><tbody>{rows.length ? rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>) : <tr><td colSpan={heads.length} className="empty">No records in this view</td></tr>}</tbody></table></div></article>;
