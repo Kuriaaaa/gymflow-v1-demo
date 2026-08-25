@@ -1,0 +1,12 @@
+packages:
+  - .
+
+allowBuilds:
+  esbuild: set this to true or false
+  unrs-resolver: set this to true or false
+  workerd: set this to true or false
+
+overrides:
+  nanoid: ">=3.3.18"
+  postcss: ">=8.5.23"
+  sharp: ">=0.35.0"

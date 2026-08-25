@@ -252,7 +252,7 @@ export default function DemoApp() {
           <p className="eyebrow">KURIA&apos;S GYM PROJECT · INTERACTIVE EXPERIENCE</p>
           <h1>The gym,<br/><span>in perfect flow.</span></h1>
           <p className="lead">Experience how one connected platform moves a member from welcome desk to workout, payment and measurable progress—without crossing a single privacy boundary.</p>
-          <div className="hero-actions"><a className="primary-link" href="#workspace">Explore the demo</a><a className="text-link" href="https://gymflow-v1-app.onrender.com/" target="_blank" rel="noreferrer">Open live application ↗</a></div>
+          <div className="hero-actions"><a className="primary-link" href="#workspace">Explore the demo</a><span className="demo-note">No account setup required · Fictional browser-only data</span></div>
         </div>
         <div className="role-switcher" aria-label="Choose demo role">
           <p>Step into a workspace</p>
