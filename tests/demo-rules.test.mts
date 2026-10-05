@@ -26,8 +26,7 @@ const TODAY = dayKey(NOW);
 const NOW_ISO = NOW.toISOString();
 
 function ok(result: RuleResult): DemoState {
-  assert.equal(result.ok, true, result.message);
-  if (!result.ok) throw new Error(result.message);
+  if (!result.ok) assert.fail(`expected the rule to succeed: ${result.message}`);
   return result.state;
 }
 
