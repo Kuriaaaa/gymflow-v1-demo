@@ -25,8 +25,14 @@ function contentSecurityPolicyMeta(): Plugin {
   return {
     name: "gymflow-csp-meta",
     apply: "build",
-    transformIndexHtml() {
-      return [{ tag: "meta", attrs: { "http-equiv": "Content-Security-Policy", content: contentSecurityPolicy }, injectTo: "head-prepend" }];
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        const charset = '<meta charset="UTF-8" />';
+        if (!html.includes(charset)) throw new Error("index.html must declare <meta charset=\"UTF-8\" /> for the CSP meta tag");
+        // Placed straight after the charset declaration, before any script or stylesheet.
+        return html.replace(charset, `${charset}\n    <meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy}" />`);
+      },
     },
   };
 }
