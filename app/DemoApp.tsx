@@ -110,6 +110,10 @@ export default function DemoApp() {
   const payments = data.payments.filter((item) => isStaff || (role === "member" && item.memberId === activePerson.id));
   const pendingPayments = data.payments.filter((item) => item.status === "pending");
   const expiring = isStaff ? expiringWithin(data, today, 7) : [];
+  // Members renewing usually want the same plan again, so preselect it.
+  const ownLatestPackage = data.memberships
+    .filter((item) => item.memberId === activePerson.id && item.status !== "cancelled")
+    .sort((a, b) => b.endsOn.localeCompare(a.endsOn))[0]?.packageName;
 
   const metrics: [string, string | number][] = (() => {
     const activeCount = (ids: number[]) => ids.filter((id) => activeMembership(data, id, today)).length;
@@ -383,7 +387,7 @@ export default function DemoApp() {
           {isStaff && <Action title="Assign trainer" onSubmit={assignTrainer}><Select name="memberId" label="Member" items={members}/><Select name="trainerId" label="Trainer" items={trainers}/><Submit>Assign trainer</Submit></Action>}
           {isStaff && <Action title="Activate membership" onSubmit={addMembership}><Select name="memberId" label="Member" items={members}/><PackageSelect packages={data.packages}/><Submit>Activate</Submit></Action>}
           {isStaff && <Action title="Record desk payment" onSubmit={submitPayment}><Select name="memberId" label="Member" items={members}/><PackageSelect packages={data.packages}/><PaymentMethodSelect/><p className="hint">Settles the membership awaiting payment, or starts the next period.</p><Submit>Record payment</Submit></Action>}
-          {role === "member" && <Action title="Request payment" onSubmit={submitPayment}><PackageSelect packages={data.packages}/><PaymentMethodSelect/><p className="hint">Requests stay pending until the front desk confirms them.</p><Submit>Request payment</Submit></Action>}
+          {role === "member" && <Action title="Request payment" onSubmit={submitPayment}><PackageSelect packages={data.packages} defaultValue={ownLatestPackage}/><PaymentMethodSelect/><p className="hint">Requests stay pending until the front desk confirms them.</p><Submit>Request payment</Submit></Action>}
           {isStaff && <Action title="Attendance desk" onSubmit={attendance}><Select name="memberId" label="Member" items={members}/><p className="hint">Check-in requires an active membership.</p><Submit>Toggle check-in/out</Submit></Action>}
           {(isStaff || role === "trainer") && <Action title="Schedule session" onSubmit={addSchedule}><Select name="memberId" label="Member" items={role === "trainer" ? assignedMembers : members}/>{role !== "trainer" && <Select name="trainerId" label="Trainer" items={trainers}/>}<Input name="title" label="Session title"/><Input name="startsAt" label="Starts" type="datetime-local"/><Submit>Schedule</Submit></Action>}
           {(role === "owner" || role === "trainer") && <Action title="Assign workout" onSubmit={addWorkout}><Select name="memberId" label="Member" items={role === "trainer" ? assignedMembers : members}/>{role !== "trainer" && <Select name="trainerId" label="Trainer" items={trainers}/>}<Input name="title" label="Plan title"/><Input name="instructions" label="Instructions"/><Submit>Assign plan</Submit></Action>}
@@ -420,7 +424,7 @@ function Metric({ label, value }: { label: string; value: string | number }) { r
 function Action({ title, onSubmit, children }: { title: string; onSubmit: (event: FormEvent<HTMLFormElement>) => void; children: ReactNode }) { return <form className="action-card" onSubmit={onSubmit}><h4>{title}</h4>{children}</form>; }
 function Input({ name, label, type = "text" }: { name: string; label: string; type?: string }) { return <label>{label}<input name={name} type={type} required/></label>; }
 function Select({ name, label, items }: { name: string; label: string; items: Person[] }) { return <label>{label}<select name={name} required>{items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>; }
-function PackageSelect({ packages }: { packages: Package[] }) { return <label>Package<select name="packageName" required>{packages.map((item) => <option key={item.name} value={item.name}>{item.name} · {money.format(item.price)}</option>)}</select></label>; }
+function PackageSelect({ packages, defaultValue }: { packages: Package[]; defaultValue?: string }) { return <label>Package<select key={defaultValue} name="packageName" defaultValue={defaultValue} required>{packages.map((item) => <option key={item.name} value={item.name}>{item.name} · {money.format(item.price)}</option>)}</select></label>; }
 function PaymentMethodSelect() { return <label>Payment method<select name="method" required>{PAYMENT_METHODS.map((item) => <option key={item}>{item}</option>)}</select></label>; }
 function Submit({ children }: { children: ReactNode }) { return <button className="primary" type="submit">{children}</button>; }
 function Table({ title, heads, rows }: { title: string; heads: string[]; rows: ReactNode[][] }) {
