@@ -9,11 +9,13 @@ published.
 
 ## Included workflows
 
-- Owner dashboard and role-aware workspace navigation
+- Owner dashboard and role-aware workspace navigation with role-scoped metrics
 - Receptionist member registration
-- One active membership per member
-- Payment approval linked to the selected membership
-- Attendance check-in
+- One active or queued membership per member, with real expiry dates,
+  renewals, cancellations and an "Expiring this week" list
+- Members request payments; the owner or receptionist confirms or rejects them
+- Payments linked to a specific membership period
+- Attendance check-in (requires an active membership)
 - Trainer schedules and workout assignments
 - Owner expenses and operational summaries
 
@@ -26,20 +28,18 @@ pnpm install
 pnpm dev
 ```
 
-Run the production build and rendered-output test with:
+Run the production build, rule unit tests and rendered-output tests with:
 
 ```bash
 pnpm test
 ```
 
-Build the static GitHub Pages edition with:
+`pnpm build` (alias `pnpm build:pages`) writes the static GitHub Pages edition
+to `dist-pages/`.
 
-```bash
-pnpm build:pages
-```
+Pull requests and branch pushes run CI (build, tests, type check, lint).
+Every push to `main` is deployed automatically to GitHub Pages.
 
-Every push to `main` is deployed automatically by GitHub Actions.
-
-The original Python/SQLite GymFlow V1 remains the authoritative local
-development application. This hosted edition is intentionally a safe,
-device-local public demo.
+This hosted edition is intentionally a safe, device-local public demo. Want to
+see GymFlow with your own gym's data?
+[Book a demo](mailto:johnkuria6996@gmail.com?subject=GymFlow%20demo%20request).
