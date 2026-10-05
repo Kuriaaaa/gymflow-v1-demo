@@ -1,42 +1,37 @@
 {
   "name": "gymflow-v1-public-demo",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build",
-    "build:pages": "vite build --config vite.pages.config.ts",
-    "start": "vinext start",
-    "test": "pnpm run build && node --experimental-strip-types --test tests/demo-policy.test.mts tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "dev": "vite --config vite.pages.config.ts",
+    "build": "vite build --config vite.pages.config.ts",
+    "build:pages": "pnpm run build",
+    "preview": "vite preview --config vite.pages.config.ts",
+    "test": "pnpm run build && node --experimental-strip-types --test tests/demo-policy.test.mts tests/demo-rules.test.mts tests/rendered-html.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "drizzle-orm": "0.45.2",
-    "next": "16.2.11",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
+    "@eslint/js": "9.39.4",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
-    "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.11",
-    "react-server-dom-webpack": "19.2.6",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.4.0",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "vinext": "0.0.50",
-    "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "typescript-eslint": "8.65.0",
+    "vite": "8.0.13"
   },
   "type": "module"
 }

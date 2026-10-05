@@ -1,5 +1,3 @@
-"use client";
-
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { assignedMemberIds, canTrainerManageMember, hasActiveAssignment } from "./demo-policy";
 import {
