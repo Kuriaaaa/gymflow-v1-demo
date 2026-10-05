@@ -247,7 +247,7 @@ export default function DemoApp() {
         <button className="ghost" onClick={resetDemo}>Reset demo</button>
       </header>
 
-      <section id="top" className="hero" style={{ backgroundImage: "url('images/gymflow-demo-hero-v2.png')" }}>
+      <section id="top" className="hero" style={{ backgroundImage: "url('images/gymflow-demo-hero-v2.jpg')" }}>
         <div className="hero-copy">
           <p className="eyebrow">KURIA&apos;S GYM PROJECT · INTERACTIVE EXPERIENCE</p>
           <h1>The gym,<br/><span>in perfect flow.</span></h1>
@@ -270,7 +270,7 @@ export default function DemoApp() {
         </div>
       </section>
 
-      <section className="story-panel" style={{ backgroundImage: "url('images/gymflow-demo-operations-v2.png')" }}>
+      <section className="story-panel" style={{ backgroundImage: "url('images/gymflow-demo-operations-v2.jpg')" }}>
         <div><p className="eyebrow">A COMPLETE DAY, CONNECTED</p><h2>From first hello<br/>to the final set.</h2><ol><li><b>01</b><span><strong>Reception</strong>Member joins, selects a plan and checks in.</span></li><li><b>02</b><span><strong>Coaching</strong>Trainer receives the assignment and builds the session.</span></li><li><b>03</b><span><strong>Insight</strong>Owner sees the operational outcome—not private noise.</span></li></ol></div>
       </section>
 
